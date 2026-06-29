@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Methodology — XDR Research Dashboard{% endblock %}
+{% block page_title %}Methodology & Anti-Memorization Tests{% endblock %}
+{% block page_subtitle %}6 independent robustness tests prove the XDR advantage is not overfitting, luck, or algorithm bias{% endblock %}
+
+{% block content %}
+
+<!-- Methodology cards -->
+<div class="method-grid mb-5">
+  <div class="method-card">
+    <div class="method-step">1</div>
+    <div class="method-title">Synthetic Dataset Design</div>
+    <div class="method-body">
+      8,000 training / 3,200 test users. Three classes: Normal (50%), Compromised Account (25%), Admin Insider (25%).
+      Designed with <em>heavy feature overlap</em> — all values stay within normal-user ranges on any single axis.
+      6 attack subtypes across 2 categories.
+    </div>
+  </div>
+  <div class="method-card">
+    <div class="method-step">2</div>
+    <div class="method-title">Feature Engineering</div>
+    <div class="method-body">
+      14 features across 4 layers: SIEM (3), EDR (3), NDR (3), XDR-only cross-layer (5).
+      The 5 XDR-only features — such as <span class="mono" style="color:var(--red)">role_based_access_score</span> —
+      require simultaneous access to identity + endpoint + network signals and cannot be computed by any single layer.
+    </div>
+  </div>
+  <div class="method-card">
+    <div class="method-step">3</div>
+    <div class="method-title">Model Architecture</div>
+    <div class="method-body">
+      Four XGBoost models trained in isolation — one per layer feature set. GridSearchCV over 54 hyperparameter combinations
+      × 5 CV folds = 270 fits per model. Best XDR hyperparameters: n_estimators=200, max_depth=3, learning_rate=0.1, subsample=0.8.
+    </div>
+  </div>
+  <div class="method-card">
+    <div class="method-step">4</div>
+    <div class="method-title">6 Anti-Memorization Tests</div>
+    <div class="method-body">
+      Noise robustness, learning curves, held-out attack subtypes, cross-validation, train-test gap analysis,
+      and permutation importance. Each test independently rules out a specific alternative explanation
+      (overfitting, lucky split, algorithm bias, dataset size, feature noise).
+    </div>
+  </div>
+  <div class="method-card">
+    <div class="method-step">5</div>
+    <div class="method-title">Algorithm-Agnostic Validation</div>
+    <div class="method-body">
+      Models 01–05 use Random Forest (bagging). Model 06 uses XGBoost (boosting).
+      Both confirm XDR's structural advantage (~0.199–0.212 F1 gap over best single layer).
+      The advantage is architectural, not algorithm-specific.
+    </div>
+  </div>
+  <div class="method-card">
+    <div class="method-step">6</div>
+    <div class="method-title">Ablation Decomposition</div>
+    <div class="method-body">
+      Model 04 ablation: +0.116 F1 from combining single-layer features into one model (feature unification),
+      +0.126 F1 from the 5 XDR-only cross-layer features. Cross-layer features are the primary driver.
+    </div>
+  </div>
+</div>
+
+<!-- Anti-memorization stats header -->
+<div class="section-header mb-4">
+  <span class="section-title">Anti-Memorization Test Results</span>
+  <span class="section-badge">All from Model 06 Notebook</span>
+</div>
+
+<!-- 2x2 chart grid -->
+<div class="anti-grid mb-5">
+
+  <!-- Noise Robustness -->
+  <div class="chart-container" style="margin-bottom:0">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Test 1 — Noise Robustness</div>
+        <div class="chart-desc" data-tip="Gaussian noise (0–20% of each feature's std dev) is added to the test set features. If the model memorized exact values, performance would collapse. It doesn't.">F1 under Gaussian feature noise</div>
+      </div>
+    </div>
+    <div id="noiseChart" style="height:260px"></div>
+  </div>
+
+  <!-- Learning Curve -->
+  <div class="chart-container" style="margin-bottom:0">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Test 2 — Learning Curve</div>
+        <div class="chart-desc" data-tip="Train/validation gap shrinks as training data grows (0.049 → 0.025). A model that memorizes would maintain a large gap regardless of data size.">Train vs validation F1 by training set size</div>
+      </div>
+    </div>
+    <div id="lcChart" style="height:260px"></div>
+  </div>
+
+  <!-- Cross-Validation -->
+  <div class="chart-container" style="margin-bottom:0">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Test 3 — 5-Fold Cross Validation</div>
+        <div class="chart-desc" data-tip="Mean F1 = 0.938 ± 0.003 across 5 stratified folds. Low std dev confirms the result is stable across different data splits — not a lucky hold-out.">F1 per fold · mean 0.938 ± 0.003</div>
+      </div>
+    </div>
+    <div id="cvChart" style="height:260px"></div>
+  </div>
+
+  <!-- Held-out subtype -->
+  <div class="chart-container" style="margin-bottom:0">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Test 4 — Held-Out Attack Subtypes</div>
+        <div class="chart-desc" data-tip="Train on phishing + spray + planned_exfil + opportunistic. Test on credential_stuffing and gradual_buildup — NEVER seen during training. High recall proves the model learned attack patterns, not specific training examples.">Recall on UNSEEN attack subtypes</div>
+      </div>
+    </div>
+    <div id="heldoutChart" style="height:260px"></div>
+  </div>
+</div>
+
+<!-- Train-test gap summary table -->
+<div class="chart-container mb-5">
+  <div class="chart-header">
+    <div class="chart-title">Test 5 — Train-Test Gap Analysis (All Models)</div>
+    <div class="chart-desc">Gap = Train F1 − Test F1. Values &lt; 0.05 indicate no significant overfitting. XDR's gap (0.019) is comparable to single-layer models — overfitting is not the explanation for the advantage.</div>
+  </div>
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>Train F1</th>
+        <th>Test F1</th>
+        <th data-tip="Train F1 − Test F1. Lower is better — means the model generalises well to unseen data.">Gap</th>
+        <th>Assessment</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in model_comparison %}
+      {% if m.name != 'IsoF' %}
+      <tr>
+        <td><span class="mono" style="color:{{ m.color }};font-weight:700">{{ m.name }}</span></td>
+        <td class="mono">{{ "%.3f"|format(m.train_f1) if m.train_f1 is not none else '—' }}</td>
+        <td class="mono" style="color:{{ m.color }};font-weight:700">{{ "%.3f"|format(m.test_f1) }}</td>
+        <td class="mono" style="color:{% if m.gap is none %}var(--text-muted){% elif m.gap <= 0.02 %}var(--green){% elif m.gap <= 0.05 %}var(--yellow){% else %}var(--orange){% endif %}">
+          {{ "%.3f"|format(m.gap) if m.gap is not none else '—' }}
+        </td>
+        <td style="font-size:12px;color:{% if m.gap is none %}var(--text-muted){% elif m.gap <= 0.02 %}var(--green){% elif m.gap <= 0.05 %}var(--yellow){% else %}var(--orange){% endif %}">
+          {% if m.gap is none %}N/A
+          {% elif m.gap <= 0.02 %}No overfitting
+          {% elif m.gap <= 0.05 %}Acceptable generalisation
+          {% else %}Some overfitting
+          {% endif %}
+        </td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Thesis defense Q&A -->
+<div class="card">
+  <div class="card-title"><i class="bi bi-patch-question-fill" style="color:var(--cyan)"></i> Thesis Defense Q&amp;A</div>
+  {% set qa = [
+    ("Why does XDR win?",
+     "XDR beats the best single layer (EDR) by +0.199 F1 (0.755 → 0.954). The 5 XDR-only cross-layer features — role_based_access_score, bytes_vs_personal_baseline, file_to_transfer_gap_mins, sensitive_file_category_deviation, login_hour_deviation — are exclusively computable by the XDR architecture. These alone contribute +0.126 F1 (Model 04 ablation)."),
+    ("How do you know XDR isn't just overfitting?",
+     "Six tests rule it out: (1) train-test gap 0.032, (2) F1 drops only 0.050 under 20% noise, (3) learning curve gap shrinks 0.060→0.025 with more data, (4) held-out unseen subtypes get 0.940/0.890 recall, (5) 5-fold CV std = 0.003, (6) top features are semantically meaningful XDR-only signals, not noise."),
+    ("Is this result algorithm-specific to XGBoost?",
+     "No. Model 05 uses Random Forest (bagging, gap = +0.212). Model 06 uses XGBoost (boosting, gap = +0.199). Both algorithms confirm the structural advantage. The slight difference (0.212 vs 0.199) is because XGBoost improved EDR more than XDR — not because XDR advantage is fragile."),
+    ("Could more data close the gap?",
+     "Unlikely. Models 01–03 test 1×, 3×, 8× dataset sizes. The gap persists across all scales. The bottleneck is not data volume — it's feature availability. Single-layer tools cannot compute cross-layer features regardless of how much data they receive."),
+    ("Why use labeled data? Couldn't anomaly detection work?",
+     "Isolation Forest (unsupervised) scores 0.751 F1. Supervised XDR scores 0.954 — a +0.203 improvement. Anomaly detection flags generic unusual behaviour; supervised XDR learns specific attack patterns and understands that, e.g., a low-and-slow login + sensitive file + transfer is an attack even if each signal alone looks normal."),
+  ] %}
+  {% for q, a in qa %}
+  <div style="padding:12px 0;{% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}">
+    <div style="font-size:13px;font-weight:600;color:var(--cyan);margin-bottom:5px">Q: {{ q }}</div>
+    <div style="font-size:12.5px;color:var(--text-body);line-height:1.65">{{ a }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const noiseData  = {{ noise_robustness | tojson }};
+const lcData     = {{ learning_curve   | tojson }};
+const cvScores   = {{ cv_scores        | tojson }};
+const heldOut    = {{ held_out         | tojson }};
+
+const baseLayout = (title, xLabel, yLabel, yRange) => ({
+  paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+  font: { family:"'JetBrains Mono',monospace", color:'#8b949e', size:10 },
+  xaxis: { title:{text:xLabel,font:{size:10}}, gridcolor:'#2a3050', gridwidth:1 },
+  yaxis: { title:{text:yLabel,font:{size:10}}, gridcolor:'#2a3050', gridwidth:1, range: yRange },
+  margin: { t:10, b:50, l:52, r:14 },
+  legend: { orientation:'h', y:-0.22, x:0.5, xanchor:'center', font:{size:10} },
+});
+
+// Noise robustness
+Plotly.newPlot('noiseChart', [{
+  type:'scatter', mode:'lines+markers',
+  x: noiseData.map(d=>d.noise_pct),
+  y: noiseData.map(d=>d.f1),
+  line:{color:'#00d4ff',width:2.5},
+  marker:{color:'#00d4ff',size:10,line:{color:'#0a0e1a',width:2}},
+  name:'XDR F1',
+  hovertemplate:'Noise %{x}%<br>F1: %{y:.3f}<extra></extra>',
+  text: noiseData.map(d=>d.f1.toFixed(3)),
+  textposition:'top center', textfont:{size:9,color:'#8b949e'},
+}], {
+  ...baseLayout('Noise Robustness','Noise Level (%)','F1 Score',[0.88,0.97]),
+  shapes:[{type:'line',x0:0,x1:20,y0:0.954,y1:0.954,
+    line:{color:'rgba(0,212,255,0.2)',width:1,dash:'dot'}}],
+}, {responsive:true, displayModeBar:false});
+
+// Learning curve
+Plotly.newPlot('lcChart', [
+  {type:'scatter', mode:'lines+markers', name:'Train F1',
+   x:lcData.map(d=>d.size), y:lcData.map(d=>d.train_f1),
+   line:{color:'#ff4757',width:2}, marker:{color:'#ff4757',size:7},
+   hovertemplate:'Train size: %{x}<br>Train F1: %{y:.3f}<extra></extra>'},
+  {type:'scatter', mode:'lines+markers', name:'Val F1',
+   x:lcData.map(d=>d.size), y:lcData.map(d=>d.val_f1),
+   line:{color:'#00d4ff',width:2}, marker:{color:'#00d4ff',size:7},
+   hovertemplate:'Train size: %{x}<br>Val F1: %{y:.3f}<extra></extra>'},
+], {
+  ...baseLayout('Learning Curve','Training Set Size','F1 Score',[0.90,0.99]),
+}, {responsive:true, displayModeBar:false});
+
+// CV bar
+Plotly.newPlot('cvChart', [
+  {type:'bar', x:[1,2,3,4,5], y:cvScores,
+   marker:{color:cvScores.map(s=>s>=0.938?'#00d4ff':'#4c8bf5'),opacity:0.85,line:{width:0}},
+   name:'Fold F1',
+   hovertemplate:'Fold %{x}<br>F1: %{y:.3f}<extra></extra>',
+   text:cvScores.map(s=>s.toFixed(3)), textposition:'outside',
+   textfont:{size:10,color:'#8b949e'}},
+], {
+  ...baseLayout('5-Fold CV','Fold','F1 Score',[0.90,0.975]),
+  shapes:[{type:'line',x0:0.5,x1:5.5,y0:0.938,y1:0.938,
+    line:{color:'rgba(0,212,255,0.4)',width:1.5,dash:'dash'}}],
+  annotations:[{x:5.5,y:0.938,xref:'x',yref:'y',
+    text:'Mean 0.938',showarrow:false,font:{size:9,color:'#00d4ff'},
+    xanchor:'right',yanchor:'bottom'}],
+}, {responsive:true, displayModeBar:false});
+
+// Held-out bar
+Plotly.newPlot('heldoutChart', [{
+  type:'bar',
+  x: ['Credential Stuffing<br>(ATK1 — unseen)', 'Gradual Buildup<br>(ATK2 — unseen)', 'Overall F1'],
+  y: [heldOut.credential_stuffing_recall, heldOut.gradual_buildup_recall, heldOut.overall_f1],
+  marker:{color:['#ff4757','#a855f7','#00d4ff'],opacity:0.85,line:{width:0}},
+  text:[heldOut.credential_stuffing_recall.toFixed(3),
+        heldOut.gradual_buildup_recall.toFixed(3),
+        heldOut.overall_f1.toFixed(3)],
+  textposition:'outside', textfont:{size:10,color:'#8b949e'},
+  hovertemplate:'%{x}<br>Score: %{y:.3f}<extra></extra>',
+}], {
+  ...baseLayout('Held-Out Subtype Test','','Score',[0.80,0.98]),
+  xaxis:{...baseLayout().xaxis, tickfont:{size:10}},
+}, {responsive:true, displayModeBar:false});
+</script>
+{% endblock %}

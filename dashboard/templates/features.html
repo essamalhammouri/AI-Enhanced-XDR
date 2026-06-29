@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Feature Importance — XDR Research Dashboard{% endblock %}
+{% block page_title %}Feature Importance{% endblock %}
+{% block page_subtitle %}Real permutation importance from Model 06 XGBoost (n_repeats=10, scoring=f1_weighted){% endblock %}
+
+{% block content %}
+
+<!-- Chart -->
+<div class="chart-container mb-5">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title">Permutation Importance — All 14 Features</div>
+      <div class="chart-desc" data-tip="Permutation importance measures how much the model's F1 drops when a single feature's values are randomly shuffled. A large drop means the model relies heavily on that feature.">
+        Drop in F1 when feature is shuffled · XDR-only cross-layer features in top 4 of 5 · top feature: role_based_access_score (−0.1818)
+      </div>
+    </div>
+    <div class="chart-legend">
+      <span class="legend-item" data-tip="SIEM layer: Identity/auth signals — failed logins, new IPs, login hours"><span class="legend-dot" style="background:#4c8bf5"></span>SIEM</span>
+      <span class="legend-item" data-tip="EDR layer: Endpoint activity — file access ratios, admin tool usage"><span class="legend-dot" style="background:#2ed573"></span>EDR</span>
+      <span class="legend-item" data-tip="NDR layer: Network traffic — bytes vs threshold, distinct hosts, destination categories"><span class="legend-dot" style="background:#ffa502"></span>NDR</span>
+      <span class="legend-item" data-tip="XDR-only: Cross-layer derived features — ONLY computable by correlating signals across all three layers. Invisible to single-layer tools."><span class="legend-dot" style="background:#ff4757"></span>XDR-only</span>
+    </div>
+  </div>
+  <div id="featureChart" style="height:530px"></div>
+</div>
+
+<!-- Table -->
+<div class="chart-container">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title">Feature Details — Source: Model 06 Notebook, Cell 6</div>
+      <div class="chart-desc">Sorted by permutation importance (descending) · ± values are std dev across 10 repeat shuffles</div>
+    </div>
+  </div>
+  <table class="feature-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Feature Name</th>
+        <th data-tip="Which security layer provides this signal">Layer</th>
+        <th data-tip="Mean drop in F1 when this feature is shuffled (higher = more important). Computed over 10 repeats.">Importance (F1 drop)</th>
+        <th data-tip="Standard deviation across 10 shuffle repeats — low std means stable, reliable importance estimate">Std Dev</th>
+        <th>Visual</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set lclr = {'SIEM':'#4c8bf5','EDR':'#2ed573','NDR':'#ffa502','XDR':'#ff4757'} %}
+      {% set lcls = {'SIEM':'layer-siem','EDR':'layer-edr','NDR':'layer-ndr','XDR':'layer-xdr'} %}
+      {% set FEATURE_TIPS = {
+        'role_based_access_score':          'XDR-only: Compares user\'s actual resource access pattern to their assigned role\'s expected pattern. Requires cross-correlating endpoint + identity data simultaneously.',
+        'bytes_vs_role_threshold':          'NDR: Total bytes transferred divided by role-specific threshold. Admins/IT have higher thresholds — role context comes from identity layer.',
+        'sensitive_file_category_deviation':'XDR-only: Deviation between file categories accessed today vs historical distribution for this user\'s role. Requires endpoint + identity cross-layer.',
+        'files_vs_role_threshold':          'EDR: Sensitive files accessed divided by role threshold. Requires role info from identity layer — technically a cross-signal but approximated in EDR.',
+        'bytes_vs_personal_baseline':       'XDR-only: Bytes transferred today vs this specific user\'s 60-day personal baseline. Requires historical network + identity cross-reference.',
+        'distinct_hosts_accessed':          'NDR: Number of unique internal hosts this user contacted. Lateral movement indicator.',
+        'admin_tools_used_count':           'EDR: Count of privileged/administrative tool executions (PowerShell, PsExec, etc.).',
+        'login_hour_deviation':             'XDR-only: Standard deviation of login hours vs this user\'s historical norm. Detects timing pattern changes invisible to pure SIEM.',
+        'login_hour':                       'SIEM: Raw login hour of day. After-hours access is a weak signal but contributes marginally.',
+        'file_access_spike':                'EDR: Today\'s file access count divided by user\'s 30-day average — sudden spikes indicate unusual activity.',
+        'file_to_transfer_gap_mins':        'XDR-only: Time gap between accessing a sensitive file and transferring data externally. Requires correlating endpoint file events + network events.',
+        'failed_logins_count':              'SIEM: Total failed login attempts. A classic signal but heavily overlaps with noisy-auth users and travelers.',
+        'new_ip_flag':                      'SIEM: Whether the login came from an IP not seen in user\'s last 30 days. Also common for travelers.',
+        'dst_ip_category':                  'NDR: Destination IP category (safe=0, grey=1, suspicious=2). Lowest importance due to high overlap with legitimate external services.',
+      } %}
+      {% for f in features %}
+      <tr data-tip="{{ FEATURE_TIPS.get(f.name, '') }}">
+        <td class="mono" style="color:var(--text-muted)">{{ loop.index }}</td>
+        <td>
+          <span class="mono" style="color:var(--text-emphasis);font-size:13px">{{ f.name }}</span>
+          {% if f.layer == 'XDR' %}<span style="font-size:10px;color:var(--red);margin-left:6px">★ cross-layer</span>{% endif %}
+        </td>
+        <td><span class="layer-badge {{ lcls[f.layer] }}">{{ f.layer }}</span></td>
+        <td class="mono" style="color:{{ lclr[f.layer] }};font-weight:700">{{ "%.4f"|format(f.importance) }}</td>
+        <td class="mono" style="color:var(--text-muted)">± {{ "%.3f"|format(f.std) }}</td>
+        <td>
+          <div class="importance-bar-wrap">
+            <div class="importance-bar" style="width:{{ (f.importance / 0.1818 * 160)|int }}px;background:{{ lclr[f.layer] }}"></div>
+            <span class="importance-val">−{{ "%.4f"|format(f.importance) }}</span>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Insight -->
+<div class="card" style="margin-top:16px">
+  <div class="card-title"><i class="bi bi-lightbulb-fill" style="color:var(--yellow)"></i> Interpretation</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
+    <div>
+      <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:4px">XDR-only Features (5)</div>
+      <div style="font-size:12px;color:var(--text-body);line-height:1.6">
+        Positions 1, 2, 4, 8, 11. Combined importance ≈ <span class="mono" style="color:var(--cyan)">0.346</span> —
+        the dominant bloc. These are computable only by correlating signals across multiple layers simultaneously,
+        which is why single-layer tools cannot access them.
+      </div>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:600;color:var(--orange);margin-bottom:4px">NDR Features (3)</div>
+      <div style="font-size:12px;color:var(--text-body);line-height:1.6">
+        <span class="mono" style="color:var(--orange)">bytes_vs_role_threshold</span> ranks 5th (0.0599) —
+        a strong NDR signal, though now ranked behind two EDR features. NDR's F1 (0.617) still exceeds SIEM (0.559) despite equal feature count.
+      </div>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:4px">EDR Features (3)</div>
+      <div style="font-size:12px;color:var(--text-body);line-height:1.6">
+        Combined importance ≈ <span class="mono" style="color:var(--cyan)">0.111</span>.
+        EDR achieves the best single-layer F1 (0.755) because endpoint patterns correlate most strongly
+        with post-compromise activity — and now claims the top-ranked non-XDR feature (files_vs_role_threshold, rank 3).
+      </div>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:600;color:var(--blue);margin-bottom:4px">SIEM Features (3)</div>
+      <div style="font-size:12px;color:var(--text-body);line-height:1.6">
+        Combined importance ≈ <span class="mono" style="color:var(--cyan)">0.027</span>.
+        Auth signals overlap heavily with legitimate noisy-auth and traveler users, making them
+        near-redundant once other signals are available.
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const features = {{ features | tojson }};
+const colorMap = { SIEM:'#4c8bf5', EDR:'#2ed573', NDR:'#ffa502', XDR:'#ff4757' };
+const sorted = [...features].sort((a,b) => a.importance - b.importance);
+
+const trace = {
+  type: 'bar', orientation: 'h',
+  x: sorted.map(f => f.importance),
+  y: sorted.map(f => f.name),
+  error_x: {
+    type: 'data',
+    array: sorted.map(f => f.std),
+    visible: true,
+    color: 'rgba(255,255,255,0.25)',
+    thickness: 1.5,
+    width: 4,
+  },
+  marker: {
+    color: sorted.map(f => colorMap[f.layer]),
+    opacity: 0.85, line:{width:0},
+  },
+  text: sorted.map(f => `−${f.importance.toFixed(4)}`),
+  textposition: 'outside',
+  textfont: { size: 10, color: '#6e7891' },
+  customdata: sorted.map(f => [f.layer, f.std.toFixed(3)]),
+  hovertemplate: '<b>%{y}</b><br>Layer: %{customdata[0]}<br>F1 drop: %{x:.4f} ± %{customdata[1]}<extra></extra>',
+};
+
+// Separator line between layer groups (approximately)
+const xdrCount = sorted.filter(f=>f.layer==='XDR').length;
+
+const layout = {
+  paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+  font: { family:"'JetBrains Mono',monospace", color:'#8b949e', size:11 },
+  xaxis: {
+    title: { text:'Permutation Importance (F1 drop when shuffled)', font:{size:11} },
+    gridcolor:'#2a3050', gridwidth:1,
+    range: [0, 0.210],
+  },
+  yaxis: { tickfont:{size:11}, automargin:true },
+  margin: { t:10, b:50, l:260, r:90 },
+};
+
+Plotly.newPlot('featureChart', [trace], layout, {responsive:true, displayModeBar:false});
+</script>
+{% endblock %}

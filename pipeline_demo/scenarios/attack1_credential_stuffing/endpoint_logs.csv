@@ -1,0 +1,17 @@
+timestamp,host,user,event,file,process,privilege_level
+2024-03-15 11:10:11,TS-REMOTE,carol,process_start,,mimikatz.exe,admin
+2024-03-15 11:15:00,TS-REMOTE,carol,file_access,C:\IT\config\domain_credentials,mimikatz.exe,admin
+2024-03-15 11:15:45,TS-REMOTE,carol,file_access,C:\IT\admin_tools\service_accounts,mimikatz.exe,admin
+2024-03-15 11:16:30,TS-REMOTE,carol,file_access,C:\IT\backup_configs\ad_backup,powershell.exe,admin
+2024-03-15 11:17:15,TS-REMOTE,carol,file_access,C:\HR\employee_directory,powershell.exe,admin
+2024-03-15 11:18:00,TS-REMOTE,carol,file_access,C:\HR\salary_bands,powershell.exe,admin
+2024-03-15 11:18:45,TS-REMOTE,carol,file_access,C:\IT\security\auth_logs,powershell.exe,admin
+2024-03-15 11:19:30,TS-REMOTE,carol,file_access,C:\IT\config\vpn_profiles,powershell.exe,admin
+2024-03-15 11:20:15,TS-REMOTE,carol,file_access,C:\IT\scripts\user_provisioning,powershell.exe,admin
+2024-03-15 12:30:08,TS-REMOTE,carol,process_start,,7z.exe,admin
+2024-03-15 12:31:22,TS-REMOTE,carol,file_create,C:\Windows\Temp\data_pack,7z.exe,admin
+2024-03-15 11:36:11,WS-055,dave,file_access,C:\Users\dave\Documents\support_ticket_8821,explorer.exe,user
+2024-03-15 13:18:33,WS-055,dave,file_access,C:\Users\dave\Documents\q1_report_draft,explorer.exe,user
+2024-03-15 14:02:07,WS-055,dave,file_access,C:\Users\dave\Templates\response_template,explorer.exe,user
+2024-03-15 14:42:44,WS-055,dave,file_access,C:\Users\dave\Projects\customer_followup,explorer.exe,user
+2024-03-15 15:28:19,WS-055,dave,file_access,C:\Users\dave\Documents\meeting_notes_march,explorer.exe,user

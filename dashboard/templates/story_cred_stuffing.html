@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% block title %}Credential Stuffing — XDR Attack Story{% endblock %}
+{% block page_title %}Attack Story: Credential Stuffing{% endblock %}
+{% block page_subtitle %}Carol (outsider via compromised IT account) vs Dave (noisy_auth WFH user) · Only XDR fires above alert threshold{% endblock %}
+
+{% block extra_head %}
+<style>
+.story-hero { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:28px; }
+@media (max-width:900px) { .story-hero { grid-template-columns:1fr; } }
+
+.story-profile { padding:20px; border-radius:8px; border:1px solid var(--border); }
+.story-profile.attacker { border-left:3px solid var(--red);   background:rgba(255,71,87,0.04); }
+.story-profile.innocent { border-left:3px solid var(--green); background:rgba(46,213,115,0.04); }
+.story-profile-tag  { font-size:10px; font-weight:700; letter-spacing:0.08em; margin-bottom:8px; }
+.story-profile-id   { font-size:20px; font-weight:700; color:var(--text-emphasis); margin-bottom:2px; }
+.story-profile-role { font-size:11px; color:var(--text-muted); margin-bottom:12px; }
+.story-profile-desc { font-size:12.5px; color:var(--text-body); line-height:1.65; }
+
+.tl-table { width:100%; border-collapse:collapse; font-size:12px; }
+.tl-table th { padding:8px 12px; text-align:left; color:var(--text-muted); font-size:10px;
+               font-weight:600; letter-spacing:0.06em; border-bottom:1px solid var(--border);
+               background:var(--bg-card); }
+.tl-table td { padding:7px 12px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
+.tl-table tr:last-child td { border-bottom:none; }
+.tl-table tr.carol-row { background:rgba(255,71,87,0.025); }
+.tl-table tr.dave-row  { background:rgba(46,213,115,0.02); }
+.tl-time  { font-family:'JetBrains Mono',monospace; color:var(--text-muted); font-size:11px; white-space:nowrap; }
+.tl-event { color:var(--text-body); line-height:1.4; }
+.tl-key   { color:var(--text-emphasis); font-weight:500; }
+
+.ft-table { width:100%; border-collapse:collapse; font-size:12px; }
+.ft-table th { padding:9px 12px; text-align:left; color:var(--text-muted); font-size:10px;
+               font-weight:600; letter-spacing:0.06em; border-bottom:1px solid var(--border);
+               background:var(--bg-card); }
+.ft-table td { padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
+.ft-table tr:last-child td { border-bottom:none; }
+.ft-carol  { font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--red); }
+.ft-dave   { font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--green); }
+.ft-same   { font-family:'JetBrains Mono',monospace; color:var(--text-muted); }
+.ft-overlap { font-size:10px; color:var(--yellow);     font-weight:600; white-space:nowrap; }
+.ft-diff    { font-size:10px; color:var(--cyan);       font-weight:700; white-space:nowrap; }
+.ft-partial { font-size:10px; color:var(--text-muted); white-space:nowrap; }
+
+.vt-wrap  { overflow-x:auto; }
+.vt-table { width:100%; border-collapse:collapse; font-size:12.5px; min-width:640px; }
+.vt-table th { padding:10px 16px; text-align:center; color:var(--text-muted); font-size:10px;
+               font-weight:600; letter-spacing:0.06em; border-bottom:1px solid var(--border);
+               background:var(--bg-card); }
+.vt-table th:first-child { text-align:left; width:110px; }
+.vt-table td { padding:14px 16px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:top; }
+.vt-table tr:last-child td { border-bottom:none; }
+.vt-table tr.xdr-row { background:rgba(0,212,255,0.03); }
+
+.vt-cell { display:flex; flex-direction:column; align-items:flex-start; gap:5px; }
+.vt-pred { font-size:13px; font-weight:700; padding:4px 12px; border-radius:5px; white-space:nowrap; }
+.vt-pred.attack  { background:rgba(255,71,87,0.15);  color:var(--red); }
+.vt-pred.normal  { background:rgba(46,213,115,0.12); color:var(--green); }
+.vt-conf { font-size:10px; color:var(--text-muted); font-family:'JetBrains Mono',monospace; }
+.vt-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:3px; white-space:nowrap; }
+.vt-correct { background:rgba(46,213,115,0.15); color:var(--green); }
+.vt-fp      { background:rgba(255,165,2,0.18);  color:var(--orange); }
+.vt-fn      { background:rgba(255,71,87,0.15);  color:var(--red); }
+.vt-miss    { background:rgba(255,165,2,0.12);  color:var(--yellow); }
+.vt-ev { font-size:11px; color:var(--text-muted); line-height:1.55; margin-top:2px; }
+
+.threshold-note { font-size:11px; color:var(--yellow); padding:6px 10px; border-radius:4px;
+                  background:rgba(249,202,36,0.08); border:1px solid rgba(249,202,36,0.2);
+                  margin-bottom:12px; display:inline-block; }
+.takeaway { border:1px solid var(--border); border-left:4px solid var(--cyan);
+            border-radius:8px; padding:24px 28px; background:var(--bg-card); margin-top:8px; }
+.takeaway-label { font-size:10px; color:var(--cyan); font-weight:700;
+                  letter-spacing:0.08em; text-transform:uppercase; margin-bottom:12px; }
+.takeaway-quote { font-size:14.5px; color:var(--text-emphasis); line-height:1.75; font-style:italic; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── 1. THE SETUP ─────────────────────────────────────────────────────────── -->
+<div class="section-header mb-4">
+  <span class="section-title">1. The Setup</span>
+  <span class="section-badge">Compromised Account · Credential Stuffing</span>
+</div>
+
+<div class="story-hero mb-5">
+  <div class="story-profile attacker">
+    <div class="story-profile-tag" style="color:var(--red)">⚠ ATTACKER</div>
+    <div class="story-profile-id">Carol</div>
+    <div class="story-profile-role">IT account (compromised by outsider) · 2024-03-15 · Daytime attack</div>
+    <div class="story-profile-desc">
+      An external attacker has obtained a credential list targeting IT staff accounts.
+      They try <strong style="color:var(--text-emphasis)">9 passwords</strong> against carol's account
+      in 6 minutes from <strong style="color:var(--red)">185.220.101.42</strong> (a rented VPS), get in on attempt #9,
+      then immediately run mimikatz.exe, sweep <strong style="color:var(--text-emphasis)">8 files</strong> across IT and HR
+      directories in 5 minutes, archive them, and exfiltrate
+      <strong style="color:var(--red)">680 MB</strong> to the same VPS — all in a 90-minute window during business hours.
+    </div>
+  </div>
+  <div class="story-profile innocent">
+    <div class="story-profile-tag" style="color:var(--green)">✓ INNOCENT — FALSE POSITIVE TARGET</div>
+    <div class="story-profile-id">Dave</div>
+    <div class="story-profile-role">Support user · Working from home · 2024-03-15</div>
+    <div class="story-profile-desc">
+      A support employee working from home. He hasn't changed his VPN password in months and forgot it
+      — failing <strong style="color:var(--text-emphasis)">15 times</strong> over 2.7 hours before finally getting in at 11:32 AM.
+      Like carol, he logs in from a <strong style="color:var(--green)">new IP</strong> (his home network)
+      at <strong style="color:var(--green)">the same hour</strong>.
+      He then does routine support work and goes home. No suspicious network activity whatsoever.
+    </div>
+  </div>
+</div>
+
+
+<!-- ── 2. THE TIMELINE ──────────────────────────────────────────────────────── -->
+<div class="section-header mb-4">
+  <span class="section-title">2. The Timeline</span>
+  <span class="section-badge">March 15, 2024</span>
+</div>
+
+<div class="chart-container mb-5">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title">Chronological Event Log — Carol &amp; Dave Side by Side</div>
+      <div class="chart-desc">
+        Layer: <span style="color:#4c8bf5;font-weight:600">■ SIEM</span>&nbsp;
+               <span style="color:#2ed573;font-weight:600">■ EDR</span>&nbsp;
+               <span style="color:#ffa502;font-weight:600">■ NDR</span>
+        &nbsp;·&nbsp; Key events in <strong style="color:var(--text-emphasis)">bold</strong>
+      </div>
+    </div>
+    <div style="font-size:11px;display:flex;gap:16px;align-items:center">
+      <span style="color:var(--red);font-weight:700">■ Carol</span>
+      <span style="color:var(--green);font-weight:700">■ Dave</span>
+    </div>
+  </div>
+  <table class="tl-table">
+    <thead>
+      <tr>
+        <th style="width:62px">TIME</th>
+        <th style="width:60px">USER</th>
+        <th style="width:66px">LAYER</th>
+        <th>EVENT</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for evt in timeline %}
+      <tr class="{{ evt.user }}-row">
+        <td class="tl-time">{{ evt.time }}</td>
+        <td>
+          <span style="font-weight:700;font-size:12px;color:{% if evt.user=='carol' %}var(--red){% else %}var(--green){% endif %}">
+            {{ evt.user }}
+          </span>
+        </td>
+        <td>
+          <span class="layer-badge layer-{{ evt.layer | lower }}">{{ evt.layer }}</span>
+        </td>
+        <td class="tl-event{% if evt.key %} tl-key{% endif %}">{{ evt.event }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ── 3. THE FEATURES ──────────────────────────────────────────────────────── -->
+<div class="section-header mb-4">
+  <span class="section-title">3. The Features</span>
+  <span class="section-badge">All 14 ML Inputs</span>
+</div>
+
+<div class="chart-container mb-5">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title">Feature Vector — Carol vs Dave</div>
+      <div class="chart-desc">
+        <span style="color:var(--yellow);font-weight:600">⚠ Overlapping</span> = SIEM sees the same value for both &nbsp;·&nbsp;
+        <span style="color:var(--cyan);font-weight:700">★ Differentiates</span> = XDR cross-layer features only
+      </div>
+    </div>
+  </div>
+  <table class="ft-table">
+    <thead>
+      <tr>
+        <th style="width:28px">#</th>
+        <th>FEATURE</th>
+        <th style="width:70px">LAYER</th>
+        <th style="width:160px;color:var(--red)">CAROL (attacker)</th>
+        <th style="width:160px;color:var(--green)">DAVE (WFH user)</th>
+        <th style="width:120px">SIGNAL</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set lcls = {'SIEM':'layer-siem','EDR':'layer-edr','NDR':'layer-ndr','XDR':'layer-xdr'} %}
+      {% for f in feature_rows %}
+      <tr>
+        <td class="mono" style="color:var(--text-muted);font-size:11px">{{ loop.index }}</td>
+        <td>
+          <span class="mono" style="font-size:12.5px;color:var(--text-emphasis)">{{ f.name }}</span>
+          {% if f.layer == 'XDR' %}<span style="font-size:10px;color:var(--red);margin-left:5px">★</span>{% endif %}
+        </td>
+        <td><span class="layer-badge {{ lcls[f.layer] }}">{{ f.layer }}</span></td>
+        <td class="{% if f.overlap %}ft-same{% else %}ft-carol{% endif %}">{{ f.carol }}</td>
+        <td class="{% if f.overlap %}ft-same{% else %}ft-dave{% endif %}">{{ f.dave }}</td>
+        <td>
+          {% if f.overlap %}
+            <span class="ft-overlap">⚠ overlapping</span>
+          {% elif f.layer == 'XDR' %}
+            <span class="ft-diff">★ differentiates</span>
+          {% else %}
+            <span class="ft-partial">partial signal</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ── 4. THE VERDICTS ──────────────────────────────────────────────────────── -->
+<div class="section-header mb-4">
+  <span class="section-title">4. The Verdicts</span>
+  <span class="section-badge">Real Model 06 XGBoost Output · Alert threshold ≥ 70%</span>
+</div>
+
+<div class="chart-container mb-5">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title">ML Model Verdicts — Both Users</div>
+      <div class="chart-desc">
+        <span style="color:var(--yellow);font-weight:600">Below threshold</span> = model suspects attack but confidence &lt;70% — operational MISS &nbsp;·&nbsp;
+        <span style="color:var(--red);font-weight:600">FN</span> = False Negative &nbsp;·&nbsp;
+        <span style="color:var(--green);font-weight:600">✓</span> = Correct
+      </div>
+    </div>
+  </div>
+
+  <div class="threshold-note" style="margin:0 0 16px 0">
+    Alert threshold = 70% confidence. SIEM fires on carol at 52% and NDR at 48% — both below threshold.
+    Only XDR exceeds threshold (92%). Three of four single-layer tools miss the attack operationally.
+  </div>
+
+  <div class="vt-wrap">
+  <table class="vt-table">
+    <thead>
+      <tr>
+        <th>MODEL</th>
+        <th style="color:var(--red)">CAROL — Attacker</th>
+        <th style="color:var(--green)">DAVE — Innocent WFH</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for model_name in ['SIEM', 'EDR', 'NDR', 'XDR'] %}
+      {% set cv = verdicts.carol[model_name] %}
+      {% set dv = verdicts.dave[model_name] %}
+      {% set ce = evidence.carol[model_name] %}
+      {% set de = evidence.dave[model_name] %}
+      <tr{% if model_name == 'XDR' %} class="xdr-row"{% endif %}>
+        <td>
+          <span class="mono" style="font-size:15px;font-weight:700;color:
+            {% if model_name=='SIEM' %}#4c8bf5
+            {% elif model_name=='EDR' %}#2ed573
+            {% elif model_name=='NDR' %}#ffa502
+            {% else %}#00d4ff{% endif %}">{{ model_name }}</span>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px">
+            {% if model_name == 'XDR' %}14 features{% else %}3 features{% endif %}
+          </div>
+        </td>
+
+        <!-- Carol cell -->
+        <td>
+          <div class="vt-cell">
+            <div class="vt-pred {% if cv.pred != 0 %}attack{% else %}normal{% endif %}">
+              {{ cv.label }}
+            </div>
+            <div class="vt-conf">confidence {{ "%.0f"|format(cv.conf * 100) }}%
+              {% if cv.status == 'miss' %}&nbsp;·&nbsp;threshold 70%{% endif %}
+            </div>
+            {% if cv.status == 'correct' %}
+              <span class="vt-badge vt-correct">✓ Correct — ALERT</span>
+            {% elif cv.status == 'fn' %}
+              <span class="vt-badge vt-fn">✗ False Negative — attacker missed</span>
+            {% elif cv.status == 'miss' %}
+              <span class="vt-badge vt-miss">Below threshold — operational MISS</span>
+            {% endif %}
+            <div class="vt-ev">{{ ce }}</div>
+          </div>
+        </td>
+
+        <!-- Dave cell -->
+        <td>
+          <div class="vt-cell">
+            <div class="vt-pred {% if dv.pred != 0 %}attack{% else %}normal{% endif %}">
+              {{ dv.label }}
+            </div>
+            <div class="vt-conf">confidence {{ "%.0f"|format(dv.conf * 100) }}%</div>
+            {% if dv.status == 'correct' %}
+              <span class="vt-badge vt-correct">✓ Correct</span>
+            {% elif dv.status == 'fp' %}
+              <span class="vt-badge vt-fp">✗ False Positive — innocent flagged</span>
+            {% endif %}
+            <div class="vt-ev">{{ de }}</div>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+
+<!-- ── 5. THE TAKEAWAY ──────────────────────────────────────────────────────── -->
+<div class="section-header mb-4">
+  <span class="section-title">5. The Takeaway</span>
+</div>
+
+<div class="takeaway">
+  <div class="takeaway-label">XDR Thesis — What This Case Proves</div>
+  <div class="takeaway-quote">
+    "SIEM cannot tell a daytime credential-stuffing attack from a user who genuinely forgot their password —
+    both log in from a new IP at 11 AM, and SIEM's confidence on the attacker (52%) falls below any
+    operational alert threshold. Only XDR's cross-layer features — the 680 MB transfer to a suspicious IP,
+    the 75-minute file-to-exfil gap, and the IT+HR cross-category sweep — confirm the breach at 92%."
+  </div>
+</div>
+
+{% endblock %}

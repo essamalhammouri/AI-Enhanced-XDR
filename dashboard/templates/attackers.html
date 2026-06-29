@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Attackers — XDR Research Dashboard{% endblock %}
+{% block page_title %}Confirmed Attackers{% endblock %}
+{% block page_subtitle %}6 confirmed threats · risk scores from 4 XGBoost models · alert threshold ≥ 70{% endblock %}
+
+{% block content %}
+
+{% if not scores_are_real %}
+<div class="notice-banner">
+  <i class="bi bi-info-circle-fill"></i>
+  <span>Showing illustrative scores. Run
+    <code style="background:rgba(0,0,0,.3);padding:1px 6px;border-radius:3px">python generate_attacker_scores.py</code>
+    from the <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:3px">dashboard/</code>
+    folder to compute real model-output scores.</span>
+</div>
+{% endif %}
+
+<!-- Summary bar -->
+<div class="stats-row mb-5">
+  <div class="stat-cell">
+    <span class="stat-value" style="color:var(--red)">6</span>
+    <span class="stat-label">Total Confirmed</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-value" style="color:var(--orange)">3</span>
+    <span class="stat-label">Compromised Accounts</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-value" style="color:var(--purple)">3</span>
+    <span class="stat-label">Admin Insiders</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-value" style="color:var(--red)">0</span>
+    <span class="stat-label" data-tip="SIEM score ≥ 70 means it would trigger an alert. None of the 6 attackers were reliably caught by SIEM alone.">Caught by SIEM alone</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-value" style="color:var(--green)">6 / 6</span>
+    <span class="stat-label" data-tip="XDR scored all 6 confirmed attackers at ≥ 70 risk (CRITICAL 90+). No single-layer tool achieved this coverage.">Caught by XDR</span>
+  </div>
+</div>
+
+<!-- Timeline chart -->
+<div class="timeline-wrap mb-5">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title">Detection Timeline — Days to Alert per Tool</div>
+      <div class="chart-desc">XDR (red line) always alerts earliest. Tools scoring &lt;70 never trigger — shown as absent from chart. Active period shown in grey.</div>
+    </div>
+    <div class="chart-legend">
+      <span class="legend-item"><span class="legend-dot" style="background:#555e7a;border-radius:50%"></span>Active period</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#00d4ff;border-radius:50%"></span>XDR alert</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#2ed573;border-radius:50%"></span>EDR alert</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#4c8bf5;border-radius:50%"></span>SIEM alert</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#ffa502;border-radius:50%"></span>NDR alert</span>
+    </div>
+  </div>
+  <div id="timelineChart" style="height:320px"></div>
+</div>
+
+<!-- Score section header -->
+<div class="section-header mb-4">
+  <span class="section-title">Risk Score Comparison — per Attacker</span>
+  <span class="section-badge">ALERT THRESHOLD ≥ 70</span>
+  <span class="section-note">
+    Bar color: <span style="color:var(--green)">LOW &lt;40</span> ·
+    <span style="color:var(--yellow)">MED 40-69</span> ·
+    <span style="color:var(--orange)">HIGH 70-89</span> ·
+    <span style="color:var(--red)">CRIT ≥90</span>
+  </span>
+</div>
+
+<div class="attacker-grid">
+{% for atk in attacker_scores %}
+  {% set scores   = atk.scores %}
+  {% set timeline = atk.timeline %}
+  {% set evidence = atk.evidence %}
+
+  {% if scores.XDR >= 90 %}{% set hdr_cls = 'sev-critical' %}{% set hdr_sev = 'CRITICAL' %}
+  {% elif scores.XDR >= 70 %}{% set hdr_cls = 'sev-high' %}{% set hdr_sev = 'HIGH' %}
+  {% else %}{% set hdr_cls = 'sev-medium' %}{% set hdr_sev = 'MEDIUM' %}{% endif %}
+
+  <div class="attacker-card">
+    <!-- Header -->
+    <div class="attacker-header">
+      <div>
+        <div class="attacker-id">{{ atk.user_id }}</div>
+        <div class="attacker-meta-row">
+          {% if atk.attack_type == 'Compromised Account' %}
+            <span class="attacker-type" style="color:var(--orange)">{{ atk.attack_type }}</span>
+          {% else %}
+            <span class="attacker-type" style="color:var(--purple)">{{ atk.attack_type }}</span>
+          {% endif %}
+          <span class="attacker-sep">·</span>
+          <span class="attacker-type">{{ atk.subtype }}</span>
+          <span class="attacker-sep">·</span>
+          <span class="attacker-type" style="color:var(--text-muted)">{{ atk.true_label }}</span>
+          <span class="attacker-sep">·</span>
+          <span class="attacker-type" data-tip="Days the attacker was active before XDR detected them. XDR detected on day {{ timeline.xdr_day }}.">{{ timeline.days_active }} days active</span>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <span class="sev-badge {{ hdr_cls }}">{{ hdr_sev }}</span>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:3px">
+          XDR day {{ timeline.xdr_day }}
+          {% if timeline.edr_day %} · EDR day {{ timeline.edr_day }}{% endif %}
+          {% if timeline.siem_day %} · SIEM day {{ timeline.siem_day }}{% endif %}
+          {% if timeline.ndr_day %} · NDR day {{ timeline.ndr_day }}{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Score rows with evidence -->
+    <div class="attacker-body">
+      {% for model_name in ['SIEM', 'EDR', 'NDR', 'XDR'] %}
+        {% set score = scores[model_name] %}
+        {% set pct   = [score, 100] | min %}
+        {% set ev    = evidence[model_name] %}
+
+        {% if score >= 90 %}{% set bar_color='#ff4757' %}{% set sev_lbl='CRIT' %}{% set sev_cls='sev-critical' %}
+        {% elif score >= 70 %}{% set bar_color='#ffa502' %}{% set sev_lbl='HIGH' %}{% set sev_cls='sev-high' %}
+        {% elif score >= 40 %}{% set bar_color='#f9ca24' %}{% set sev_lbl='MED'  %}{% set sev_cls='sev-medium' %}
+        {% else %}{% set bar_color='#2ed573' %}{% set sev_lbl='LOW' %}{% set sev_cls='sev-low' %}{% endif %}
+
+        {% set would_alert = score >= 70 %}
+
+        <div class="score-row">
+          <span class="score-model" style="color:
+            {% if model_name=='SIEM' %}#4c8bf5
+            {% elif model_name=='EDR' %}#2ed573
+            {% elif model_name=='NDR' %}#ffa502
+            {% else %}#00d4ff{% endif %}
+          ">{{ model_name }}</span>
+
+          <div class="score-bar-wrap">
+            <div class="score-bar-bg">
+              <div class="score-bar-fill" style="width:{{ pct }}%;background:{{ bar_color }}"></div>
+            </div>
+            <span class="score-val" style="color:{{ bar_color }}">{{ "%.1f"|format(score) }}</span>
+            <span class="sev-badge {{ sev_cls }}" style="padding:2px 6px;font-size:9px;min-width:38px;text-align:center">{{ sev_lbl }}</span>
+            {% if would_alert %}
+              <span class="score-alert alert-yes" title="Would trigger alert">ALERT</span>
+            {% else %}
+              <span class="score-alert alert-no" title="Below alert threshold">MISS</span>
+            {% endif %}
+          </div>
+        </div>
+        <!-- Evidence text -->
+        <div class="evidence-text">{{ ev }}</div>
+      {% endfor %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+
+<!-- Insight card -->
+<div class="card" style="margin-top:4px">
+  <div class="card-title"><i class="bi bi-lightbulb-fill" style="color:var(--yellow)"></i> Key Insight — Cross-Layer Correlation</div>
+  <p style="font-size:13px;color:var(--text-body);line-height:1.7;margin-bottom:10px">
+    Each single-layer tool sees only a slice of the attack pattern. Attackers in this dataset deliberately
+    appear normal on any <em>individual</em> axis — their file counts, login counts, and bytes transferred
+    all fall within ranges also exhibited by legitimate users. Only XDR combines all 14 features including
+    the 5 <strong style="color:var(--red)">cross-layer-only</strong> features, where anomalies become unambiguous.
+  </p>
+  <div style="display:flex;gap:24px;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--text-muted)">
+      <span class="mono" style="color:var(--red)">role_based_access_score</span>
+      — drop in F1 when removed: <span class="mono" style="color:var(--red)">−0.1818</span> (top feature)
+    </span>
+    <span style="font-size:12px;color:var(--text-muted)">
+      <span class="mono" style="color:var(--cyan)">XDR</span> detects every attacker on day 1–7 ·
+      <span class="mono" style="color:var(--orange)">Single-layer</span> tools detect 0–4 attackers, days 3–16
+    </span>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const attackers = {{ attacker_scores | tojson }};
+
+// Build Plotly timeline (Gantt-like scatter + bar hybrid)
+const labels = attackers.map(a => a.user_id + ' · ' + a.subtype);
+const n = attackers.length;
+
+// Horizontal activity bars
+const actBars = {
+  type: 'bar', orientation: 'h', name: 'Active period',
+  x: attackers.map(a => a.timeline.days_active),
+  y: labels,
+  base: 0,
+  marker: { color: 'rgba(85,94,122,0.4)', line:{color:'rgba(85,94,122,0.7)',width:1} },
+  hovertemplate: '%{y}<br>Active for %{x} days<extra></extra>',
+};
+
+function detectionScatter(key, name, color, symbol) {
+  const days = attackers.map(a => a.timeline[key]);
+  const ys   = labels;
+  return {
+    type: 'scatter', mode: 'markers', name,
+    x: days.map(d => d === null ? null : d),
+    y: ys,
+    marker: { color, size: 12, symbol, line:{color:'#0a0e1a',width:1.5} },
+    hovertemplate: name + ' detects on day %{x}<br>%{y}<extra></extra>',
+  };
+}
+
+const traces = [
+  actBars,
+  detectionScatter('xdr_day',  'XDR alert',  '#00d4ff', 'diamond'),
+  detectionScatter('edr_day',  'EDR alert',  '#2ed573', 'circle'),
+  detectionScatter('siem_day', 'SIEM alert', '#4c8bf5', 'square'),
+  detectionScatter('ndr_day',  'NDR alert',  '#ffa502', 'triangle-up'),
+];
+
+const layout = {
+  paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+  font: { family:"'JetBrains Mono',monospace", color:'#8b949e', size:11 },
+  barmode: 'overlay',
+  xaxis: {
+    title: { text:'Day (from attack start)', font:{size:11} },
+    gridcolor:'#2a3050', gridwidth:1, zeroline:false,
+  },
+  yaxis: { automargin: true, tickfont:{size:11} },
+  legend: { orientation:'h', y:-0.18, x:0.5, xanchor:'center', font:{size:11} },
+  margin: { t:10, b:70, l:230, r:20 },
+  shapes: [{
+    type:'line', x0:0, x1:35, y0:-0.5, y1:n-0.5,
+    line:{ color:'rgba(255,71,87,0.15)', width:0 }
+  }],
+};
+
+Plotly.newPlot('timelineChart', traces, layout, {responsive:true, displayModeBar:false});
+</script>
+{% endblock %}

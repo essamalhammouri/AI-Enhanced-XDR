@@ -1,0 +1,10 @@
+timestamp,user,src_ip,location,event,status
+2024-04-02 14:00:11,eve,198.51.100.42,External_Phishing,login_attempt,failed
+2024-04-02 14:04:33,eve,198.51.100.42,External_Phishing,login_attempt,failed
+2024-04-02 14:08:07,eve,198.51.100.42,External_Phishing,login_attempt,success
+2024-04-02 14:08:09,eve,198.51.100.42,External_Phishing,session_start,success
+2024-04-02 14:00:44,frank,203.0.113.55,Hotel_WiFi,login_attempt,failed
+2024-04-02 14:06:18,frank,203.0.113.55,Hotel_WiFi,login_attempt,failed
+2024-04-02 14:11:52,frank,203.0.113.55,Hotel_WiFi,login_attempt,failed
+2024-04-02 14:14:29,frank,203.0.113.55,Hotel_WiFi,login_attempt,success
+2024-04-02 14:14:31,frank,203.0.113.55,Hotel_WiFi,session_start,success

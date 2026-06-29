@@ -1,0 +1,16 @@
+﻿# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+venv/
+env/
+.venv/
+
+# Large raw/cleaned dataset files - too big for GitHub (see README for source)
+data/cert_clean/
+data/unified_log.csv
+data/endpoint_logs.csv
+
+# OS/editor junk
+.DS_Store
+.vscode/

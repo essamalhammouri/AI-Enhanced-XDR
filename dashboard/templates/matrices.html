@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Confusion Matrices — XDR Research Dashboard{% endblock %}
+{% block page_title %}Confusion Matrices{% endblock %}
+{% block page_subtitle %}3-class classification (Normal · Compromised Account · Admin Insider) — test set 300 users{% endblock %}
+
+{% block content %}
+
+<!-- Summary KPIs -->
+<div class="stats-row mb-5">
+  {% for name, data in matrices.items() %}
+  <div class="stat-cell">
+    <span class="stat-value mono" style="color:{{ data.color }}">{{ data.f1 }}</span>
+    <span class="stat-label">{{ name }} F1</span>
+  </div>
+  {% endfor %}
+  <div class="stat-cell">
+    <span class="stat-value mono" style="color:var(--green)">+0.199</span>
+    <span class="stat-label">XDR Advantage</span>
+  </div>
+</div>
+
+<!-- 2×2 grid of matrices -->
+<div class="matrix-grid mb-5">
+  {% for name, data in matrices.items() %}
+  <div class="matrix-card">
+    <div class="matrix-header">
+      <div>
+        <div class="matrix-model">{{ name }}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">
+          {% if name == 'SIEM' %}Identity layer · 3 features
+          {% elif name == 'EDR' %}Endpoint layer · 3 features
+          {% elif name == 'NDR' %}Network layer · 3 features
+          {% else %}All layers · 14 features
+          {% endif %}
+        </div>
+      </div>
+      <div>
+        <div class="matrix-f1" style="color:{{ data.color }}">{{ data.f1 }}</div>
+        <div style="font-size:10px;color:var(--text-muted);text-align:right">F1 Score</div>
+      </div>
+    </div>
+    <div class="matrix-plot">
+      <div id="matrix_{{ name }}" style="height:300px"></div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Accuracy per class table -->
+<div class="chart-container">
+  <div class="chart-header">
+    <div class="chart-title">Per-Class Accuracy Summary</div>
+    <div class="chart-desc">Diagonal elements as % of true class (recall per class)</div>
+  </div>
+  <table class="feature-table">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th style="color:#8b949e">Normal Recall</th>
+        <th style="color:#ffa502">Compromised Recall</th>
+        <th style="color:#a855f7">Insider Recall</th>
+        <th>F1 Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for name, data in matrices.items() %}
+      {% set z = data.z %}
+      {% set normal_recall     = (z[0][0] / (z[0][0]+z[0][1]+z[0][2]) * 100)|round(1) %}
+      {% set comp_recall       = (z[1][1] / (z[1][0]+z[1][1]+z[1][2]) * 100)|round(1) %}
+      {% set insider_recall    = (z[2][2] / (z[2][0]+z[2][1]+z[2][2]) * 100)|round(1) %}
+      <tr>
+        <td><span class="mono" style="color:{{ data.color }};font-weight:700">{{ name }}</span></td>
+        <td class="mono" style="color:{% if normal_recall >= 95 %}var(--green){% elif normal_recall >= 85 %}var(--yellow){% else %}var(--orange){% endif %}">{{ normal_recall }}%</td>
+        <td class="mono" style="color:{% if comp_recall >= 90 %}var(--green){% elif comp_recall >= 70 %}var(--yellow){% else %}var(--red){% endif %}">{{ comp_recall }}%</td>
+        <td class="mono" style="color:{% if insider_recall >= 90 %}var(--green){% elif insider_recall >= 70 %}var(--yellow){% else %}var(--red){% endif %}">{{ insider_recall }}%</td>
+        <td class="mono" style="color:{{ data.color }};font-weight:700">{{ data.f1 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const matrices = {{ matrices | tojson }};
+
+const classes = ['Normal', 'Compromised', 'Insider'];
+
+for (const [name, data] of Object.entries(matrices)) {
+  const z    = data.z;
+  const zPct = z.map((row, i) => {
+    const total = row.reduce((a,b)=>a+b, 0);
+    return row.map(v => +(v / total * 100).toFixed(1));
+  });
+
+  // Text: "count\n(xx.x%)"
+  const textArr = z.map((row, i) => row.map((v, j) => `${v}<br>(${zPct[i][j]}%)`));
+
+  const colorscale = [
+    [0,   '#0d1117'],
+    [0.3, '#1a1f2e'],
+    [0.6, data.color + '66'],
+    [1.0, data.color],
+  ];
+
+  const trace = {
+    type: 'heatmap',
+    z: zPct,
+    x: classes,
+    y: classes,
+    colorscale,
+    showscale: false,
+    hovertemplate: 'Actual: %{y}<br>Predicted: %{x}<br>Count: ' +
+      z.flat().join('__') + '<br>%{z:.1f}%<extra></extra>',
+    text: textArr,
+    texttemplate: '%{text}',
+    textfont: { size: 12, color: '#e6edf3', family: "'JetBrains Mono',monospace" },
+  };
+
+  const layout = {
+    paper_bgcolor: 'transparent',
+    plot_bgcolor:  'transparent',
+    font: { family:"'JetBrains Mono',monospace", color:'#8b949e', size:11 },
+    xaxis: {
+      title: { text:'Predicted', font:{size:11} },
+      side: 'bottom',
+    },
+    yaxis: {
+      title: { text:'Actual', font:{size:11} },
+      autorange: 'reversed',
+    },
+    margin: { t:10, b:50, l:80, r:10 },
+  };
+
+  Plotly.newPlot('matrix_' + name, [trace], layout, {responsive:true, displayModeBar:false});
+}
+</script>
+{% endblock %}

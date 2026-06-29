@@ -1,0 +1,10 @@
+timestamp,host,user,event,file,process,privilege_level
+2024-04-02 14:11:08,GW-EVE,eve,process_start,,7z.exe,user
+2024-04-02 14:15:00,GW-EVE,eve,file_access,C:\HR\employee_records,explorer.exe,user
+2024-04-02 14:18:00,GW-EVE,eve,file_access,C:\HR\salary_matrix_2024,explorer.exe,user
+2024-04-02 14:22:00,GW-EVE,eve,file_access,C:\Finance\budget_overview_q1,explorer.exe,user
+2024-04-02 14:26:00,GW-EVE,eve,file_access,C:\Finance\quarterly_targets_2024,explorer.exe,user
+2024-04-02 14:51:00,GW-EVE,eve,file_create,C:\Windows\Temp\report_pack,7z.exe,user
+2024-04-02 14:18:44,LAPTOP-055,frank,file_access,C:\Users\frank\Documents\client_presentation,explorer.exe,user
+2024-04-02 16:02:11,LAPTOP-055,frank,file_access,C:\Users\frank\Projects\q2_planning,explorer.exe,user
+2024-04-02 17:33:28,LAPTOP-055,frank,file_access,C:\Users\frank\Reports\weekly_update,explorer.exe,user

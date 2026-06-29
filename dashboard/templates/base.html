@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}XDR Research Dashboard{% endblock %}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ── SIDEBAR ──────────────────────────────────────────── -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon"><i class="bi bi-shield-shaded"></i></div>
+    <div class="brand-text">
+      <span class="brand-title">XDR<span class="brand-accent">Lab</span></span>
+      <span class="brand-sub">Research Dashboard</span>
+    </div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <ul class="sidebar-nav">
+    <li class="nav-item">
+      <a href="{{ url_for('overview') }}" class="nav-link {% if active=='overview' %}active{% endif %}">
+        <i class="bi bi-grid-1x2-fill nav-icon"></i>
+        <span>Overview</span>
+        {% if active=='overview' %}<span class="nav-indicator"></span>{% endif %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="{{ url_for('attackers') }}" class="nav-link {% if active=='attackers' %}active{% endif %}">
+        <i class="bi bi-person-fill-exclamation nav-icon"></i>
+        <span>Attackers</span>
+        {% if active=='attackers' %}<span class="nav-indicator"></span>{% endif %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="{{ url_for('features') }}" class="nav-link {% if active=='features' %}active{% endif %}">
+        <i class="bi bi-bar-chart-fill nav-icon"></i>
+        <span>Feature Importance</span>
+        {% if active=='features' %}<span class="nav-indicator"></span>{% endif %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="{{ url_for('matrices') }}" class="nav-link {% if active=='matrices' %}active{% endif %}">
+        <i class="bi bi-grid-3x3-gap-fill nav-icon"></i>
+        <span>Confusion Matrices</span>
+        {% if active=='matrices' %}<span class="nav-indicator"></span>{% endif %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="{{ url_for('methodology') }}" class="nav-link {% if active=='methodology' %}active{% endif %}">
+        <i class="bi bi-journal-code nav-icon"></i>
+        <span>Methodology</span>
+        {% if active=='methodology' %}<span class="nav-indicator"></span>{% endif %}
+      </a>
+    </li>
+  </ul>
+
+  <div class="sidebar-divider" style="margin-top:8px"></div>
+  <div style="padding:8px 20px 4px;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);text-transform:uppercase">Attack Stories</div>
+  <ul class="sidebar-nav" style="margin-top:0">
+    <li class="nav-item">
+      <a href="{{ url_for('story_planned_exfil') }}" class="nav-link {% if active=='stories' and story_id|default('')=='planned_exfil' %}active{% endif %}">
+        <i class="bi bi-person-fill-lock nav-icon"></i>
+        <span>Planned Exfil</span>
+        {% if active=='stories' and story_id|default('')=='planned_exfil' %}<span class="nav-indicator"></span>{% endif %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="{{ url_for('story_cred_stuffing') }}" class="nav-link {% if active=='stories' and story_id|default('')=='credential_stuffing' %}active{% endif %}">
+        <i class="bi bi-key-fill nav-icon"></i>
+        <span>Cred. Stuffing</span>
+        {% if active=='stories' and story_id|default('')=='credential_stuffing' %}<span class="nav-indicator"></span>{% endif %}
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="{{ url_for('story_phishing') }}" class="nav-link {% if active=='stories' and story_id|default('')=='phishing' %}active{% endif %}">
+        <i class="bi bi-envelope-exclamation-fill nav-icon"></i>
+        <span>Phishing</span>
+        {% if active=='stories' and story_id|default('')=='phishing' %}<span class="nav-indicator"></span>{% endif %}
+      </a>
+    </li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-divider"></div>
+    <div class="footer-info">
+      <span class="footer-tag"><i class="bi bi-mortarboard-fill"></i> Graduation Project 2026</span>
+      <span class="footer-thesis">XDR vs. Single-Layer Security</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ── MAIN CONTENT ──────────────────────────────────────── -->
+<main class="main-content">
+  <header class="top-header">
+    <div>
+      <h1 class="header-title">{% block page_title %}Dashboard{% endblock %}</h1>
+      <p class="header-subtitle">{% block page_subtitle %}{% endblock %}</p>
+    </div>
+    <div class="header-right">
+      <div class="header-badge">
+        <span class="badge-dot pulse"></span>
+        <span class="badge-text">LIVE ANALYSIS</span>
+      </div>
+      <div class="header-meta">
+        <span class="meta-item"><i class="bi bi-cpu-fill"></i>&nbsp;Model 06 · XGBoost</span>
+        <span class="meta-item"><i class="bi bi-check-circle-fill text-success"></i>&nbsp;5-fold CV: 0.938 ± 0.003</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="content-wrapper">
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+{% block scripts %}{% endblock %}
+<script>
+// Animate KPI counters on page load
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-counter]').forEach(el => {
+        const target   = parseFloat(el.dataset.counter);
+        const decimals = (el.dataset.counter.split('.')[1] || '').length;
+        const prefix   = el.dataset.prefix || '';
+        const suffix   = el.dataset.suffix || '';
+        if (isNaN(target)) return;
+        let startTs = null;
+        const dur = 900;
+        const step = ts => {
+            if (!startTs) startTs = ts;
+            const p = Math.min((ts - startTs) / dur, 1);
+            const e = 1 - Math.pow(1 - p, 3);
+            el.textContent = prefix + (e * target).toFixed(decimals) + suffix;
+            if (p < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    });
+});
+</script>
+</body>
+</html>

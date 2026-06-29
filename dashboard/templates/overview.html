@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}Overview — XDR Research Dashboard{% endblock %}
+{% block page_title %}Research Overview{% endblock %}
+{% block page_subtitle %}XDR vs Single-Layer Security · Model 06 XGBoost · Final Results{% endblock %}
+
+{% block content %}
+
+<!-- KPI Cards with animated counters -->
+<div class="kpi-grid">
+  <div class="kpi-card" style="--kpi-color:#00d4ff">
+    <div class="kpi-label" data-tip="Macro-average F1 score of the XDR (all-layers) XGBoost model on the held-out test set (3,200 users). F1 = harmonic mean of precision and recall.">XDR F1 Score</div>
+    <div class="kpi-value" data-counter="0.954">0.954</div>
+    <div class="kpi-sub"><i class="bi bi-arrow-up-circle-fill"></i>&nbsp;Model 06 · XGBoost final</div>
+    <i class="bi bi-shield-fill-check kpi-icon"></i>
+  </div>
+  <div class="kpi-card" style="--kpi-color:#ffa502">
+    <div class="kpi-label" data-tip="The best F1 score achievable by any single security layer alone. EDR (endpoint features only) outperforms SIEM and NDR but still lags XDR by +0.199.">Best Single-Layer F1</div>
+    <div class="kpi-value" data-counter="0.755">0.755</div>
+    <div class="kpi-sub"><i class="bi bi-cpu-fill"></i>&nbsp;EDR — Endpoint layer</div>
+    <i class="bi bi-layers-fill kpi-icon"></i>
+  </div>
+  <div class="kpi-card" style="--kpi-color:#2ed573">
+    <div class="kpi-label" data-tip="XDR F1 minus best single-layer F1 (0.954 − 0.755). Robust across 6 experiments, 2 algorithms, and all dataset sizes — the structural architectural advantage.">Structural Advantage</div>
+    <div class="kpi-value" data-counter="0.199" data-prefix="+">+0.199</div>
+    <div class="kpi-sub"><i class="bi bi-check-circle-fill"></i>&nbsp;Consistent across all 6 experiments</div>
+    <i class="bi bi-graph-up-arrow kpi-icon"></i>
+  </div>
+  <div class="kpi-card" style="--kpi-color:#ff4757">
+    <div class="kpi-label" data-tip="Confirmed attackers in the test set: 3 compromised accounts (phishing, password spray, credential stuffing) + 3 admin insiders (planned exfil, opportunistic, gradual buildup). XDR detected all 6 as CRITICAL.">Attackers Detected</div>
+    <div class="kpi-value" data-counter="6" style="font-size:34px">6</div>
+    <div class="kpi-sub"><i class="bi bi-people-fill"></i>&nbsp;3 Compromised · 3 Admin Insider</div>
+    <i class="bi bi-person-fill-exclamation kpi-icon"></i>
+  </div>
+  <div class="kpi-card" style="--kpi-color:#a855f7">
+    <div class="kpi-label" data-tip="Estimated total log events across auth_logs.csv + endpoint_logs.csv + network_logs.csv, combined into unified_log.csv. Used for feature extraction.">Events Processed</div>
+    <div class="kpi-value" style="font-size:22px">{{ total_events }}</div>
+    <div class="kpi-sub"><i class="bi bi-database-fill"></i>&nbsp;Auth · Endpoint · Network logs</div>
+    <i class="bi bi-database-fill kpi-icon"></i>
+  </div>
+</div>
+
+<!-- Stats row -->
+<div class="stats-row mb-5">
+  <div class="stat-cell">
+    <span class="stat-value" style="color:var(--cyan)" data-tip="5-fold stratified CV mean F1 on training data — measures stability, not overfitting.">0.938</span>
+    <span class="stat-label">5-Fold CV Mean</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-value" style="color:var(--green)" data-tip="Standard deviation across 5 folds. Low value (well under 0.05 threshold) confirms result is not a lucky split.">±0.003</span>
+    <span class="stat-label">CV Std Dev</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-value" style="color:var(--green)" data-tip="XDR train F1 (0.986) minus test F1 (0.954). A gap under 0.05 indicates the model is NOT overfitting.">0.032</span>
+    <span class="stat-label">Train–Test Gap</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-value" style="color:var(--orange)" data-tip="Unsupervised Isolation Forest baseline trained only on normal users. Shows value of supervised XDR over anomaly detection (+0.203 F1).">0.751</span>
+    <span class="stat-label">Isolation Forest F1</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-value" style="color:var(--cyan)" data-tip="Recall on credential_stuffing — an attack subtype the model NEVER saw during training (held-out subtype test). Proves generalization.">94.0%</span>
+    <span class="stat-label">Cred. Stuffing Recall</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-value" style="color:var(--cyan)" data-tip="Recall on gradual_buildup — also held out from training. 89% on an unseen, slow-burn attack type confirms the model learned attack patterns, not specific samples.">89.0%</span>
+    <span class="stat-label">Gradual Buildup Recall</span>
+  </div>
+</div>
+
+<!-- Hero chart -->
+<div class="chart-container mb-5">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title">Model F1 Score — All 6 Experiments</div>
+      <div class="chart-desc">XDR's structural advantage is preserved across dataset scale, algorithm choice, and hyperparameter tuning</div>
+    </div>
+    <div class="chart-legend">
+      <span class="legend-item"><span class="legend-dot" style="background:#4c8bf5"></span>SIEM</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#2ed573"></span>EDR</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#ffa502"></span>NDR</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#00d4ff"></span>XDR</span>
+    </div>
+  </div>
+  <div id="heroChart" style="height:390px"></div>
+</div>
+
+<!-- Compare all models table -->
+<div class="chart-container mb-5">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title">Full Model Comparison — All Metrics</div>
+      <div class="chart-desc">Model 06 · XGBoost · GridSearchCV-tuned · 8,000 train / 3,200 test</div>
+    </div>
+  </div>
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th data-tip="Number of input features available to this layer">Features</th>
+        <th data-tip="F1 on training set — if much higher than Test F1, the model is overfitting">Train F1</th>
+        <th data-tip="Macro-average F1 on held-out test set — the primary performance metric">Test F1</th>
+        <th data-tip="Train F1 − Test F1. Values under 0.05 indicate no significant overfitting">Gap</th>
+        <th data-tip="Recall on Attack 1 (Compromised Accounts) — phishing, spray, credential stuffing">Att1 Recall</th>
+        <th data-tip="Recall on Attack 2 (Admin Insiders) — planned exfil, opportunistic, gradual buildup">Att2 Recall</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in model_comparison_full %}
+      <tr>
+        <td>
+          <span class="mono" style="color:{{ m.color }};font-weight:700;font-size:14px">{{ m.name }}</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:6px">{{ m.desc }}</span>
+        </td>
+        <td class="mono" style="color:var(--text-muted)">{{ m.features }}</td>
+        <td class="mono {% if m.train_f1 and m.train_f1 >= 0.9 %}best{% endif %}"
+            style="color:{% if m.train_f1 is none %}var(--text-muted){% elif m.train_f1 >= 0.9 %}var(--cyan){% else %}var(--text-primary){% endif %}">
+          {{ "%.3f"|format(m.train_f1) if m.train_f1 is not none else '—' }}
+        </td>
+        <td class="mono" style="color:{{ m.color }};font-weight:700">{{ "%.3f"|format(m.test_f1) }}</td>
+        <td class="mono" style="color:{% if m.gap is none %}var(--text-muted){% elif m.gap <= 0.02 %}var(--green){% elif m.gap <= 0.05 %}var(--yellow){% else %}var(--orange){% endif %}">
+          {{ "%.3f"|format(m.gap) if m.gap is not none else '—' }}
+        </td>
+        <td class="mono" style="color:{% if m.a1_recall is none %}var(--text-muted){% elif m.a1_recall >= 0.9 %}var(--green){% elif m.a1_recall >= 0.7 %}var(--yellow){% else %}var(--red){% endif %}">
+          {{ "%.3f"|format(m.a1_recall) if m.a1_recall is not none else '—' }}
+        </td>
+        <td class="mono" style="color:{% if m.a2_recall is none %}var(--text-muted){% elif m.a2_recall >= 0.9 %}var(--green){% elif m.a2_recall >= 0.7 %}var(--yellow){% else %}var(--red){% endif %}">
+          {{ "%.3f"|format(m.a2_recall) if m.a2_recall is not none else '—' }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Two-column: thesis checklist + per-model F1 bar -->
+<div class="row">
+  <div class="col">
+    <div class="card">
+      <div class="card-title"><i class="bi bi-clipboard2-check-fill text-success"></i> Thesis Validation Checklist</div>
+      {% set checks = [
+        ("Not overfitting — train-test gap only 0.032",      "✓ 0.032",     "#2ed573",
+         "If the model were overfitting, train F1 would be near 1.0 while test F1 dropped sharply. Gap of 0.032 is within acceptable bounds."),
+        ("Algorithm-independent — RF and XGBoost both hold", "✓ Consistent","#2ed573",
+         "Model 05 (Random Forest, bagging) and Model 06 (XGBoost, boosting) both show XDR winning by ~0.20 F1. Confirms architectural origin."),
+        ("Dataset-size independent — 1× → 8× tested",       "✓ Robust",    "#2ed573",
+         "Models 01-03 scale from 1× to 8× data volume. The structural gap is preserved or grows — not a small-sample artifact."),
+        ("Cross-validation stable — low variance",           "✓ 0.938±0.003","#2ed573",
+         "Std dev of 0.003 across 5 folds is well under the 0.05 threshold for stability. The result is not due to a lucky train/test split."),
+        ("XDR-only features explain the gap (5 features)",   "✓ 5 features","#2ed573",
+         "Ablation (Model 04) shows +0.126 F1 from cross-layer features alone. Remove them and XDR performance drops to near-EDR level."),
+        ("Beats Isolation Forest (anomaly baseline)",        "✓ +0.203 F1", "#2ed573",
+         "Unsupervised anomaly detection scores 0.751 F1. Supervised XDR achieves 0.954. The +0.203 gap justifies the labeled training effort."),
+      ] %}
+      {% for label, result, color, tip in checks %}
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;{% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}" data-tip="{{ tip }}">
+        <span style="font-size:12.5px;color:var(--text-body)">{{ label }}</span>
+        <span class="mono" style="color:{{ color }};font-size:12px;font-weight:700;white-space:nowrap;padding-left:12px">{{ result }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col">
+    <div class="card">
+      <div class="card-title"><i class="bi bi-bar-chart-steps text-info"></i> Per-Model F1 (Test Set)</div>
+      {% set models = [
+        ("SIEM", 0.559, "#4c8bf5", "Identity · 3 features",
+         "Only sees auth log signals: failed logins, new IPs, login hours. Heavy overlap with noisy/traveler normal users."),
+        ("EDR",  0.755, "#2ed573", "Endpoint · 3 features",
+         "Sees file access patterns and admin tool usage. Best single-layer performer because endpoint activity is most attack-correlated."),
+        ("NDR",  0.617, "#ffa502", "Network · 3 features",
+         "Sees bytes transferred, distinct hosts, destination categories. Sensitive to exfil but misses authentication and endpoint context."),
+        ("XDR",  0.954, "#00d4ff", "All Layers · 14 features",
+         "Combines all 9 single-layer features plus 5 cross-layer derived features invisible to individual tools."),
+      ] %}
+      {% for name, f1, color, desc, tip in models %}
+      <div style="padding:10px 0;{% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}" data-tip="{{ tip }}">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-weight:700;color:var(--text-emphasis);font-size:14px">{{ name }}</span>
+          <span class="mono" style="font-size:14px;font-weight:700;color:{{ color }}">{{ f1 }}</span>
+        </div>
+        <div style="height:5px;background:var(--bg-hover);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:{{ (f1*100)|int }}%;background:{{ color }};border-radius:3px"></div>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:3px">{{ desc }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const expData = {{ experiment_data | tojson }};
+
+const traces = [
+  {name:'SIEM', y:expData.siem, color:'#4c8bf5'},
+  {name:'EDR',  y:expData.edr,  color:'#2ed573'},
+  {name:'NDR',  y:expData.ndr,  color:'#ffa502'},
+  {name:'XDR',  y:expData.xdr,  color:'#00d4ff'},
+].map(t => ({
+  name: t.name,
+  x: [0,1,2,3,4,5],
+  y: t.y,
+  type: 'bar',
+  marker: { color: t.color, opacity: 0.85, line:{width:0} },
+  text: t.y.map(v => v.toFixed(3)),
+  textposition: 'outside',
+  textfont: { size: 9, color: '#6e7891' },
+  hovertemplate: '<b>' + t.name + '</b><br>F1: %{y:.3f}<extra></extra>',
+}));
+
+const layout = {
+  paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+  font: { family:"'JetBrains Mono',monospace", color:'#8b949e', size:11 },
+  xaxis: {
+    ticktext: ['Model 01<br>Baseline RF','Model 02<br>3× Dataset','Model 03<br>8× Dataset',
+               'Model 04<br>Ablation','Model 05<br>Tuned RF','Model 06<br>XGBoost'],
+    tickvals: [0,1,2,3,4,5], showgrid: false, tickfont:{size:10},
+  },
+  yaxis: {
+    range: [0.44, 1.04], gridcolor:'#2a3050', gridwidth:1,
+    tickformat:'.2f', title:{text:'F1 Score', font:{size:11}},
+  },
+  legend: { orientation:'h', y:-0.16, x:0.5, xanchor:'center', font:{size:11} },
+  margin: { t:20, b:70, l:55, r:20 },
+  bargap: 0.22, bargroupgap: 0.05,
+  shapes: [{
+    type:'line', x0:-0.5, x1:5.5, y0:0.954, y1:0.954,
+    line:{ color:'rgba(0,212,255,0.22)', width:1, dash:'dot' }
+  }],
+  annotations: [{
+    x:5, y:0.954, xref:'x', yref:'y',
+    text:'XDR final: 0.954', showarrow:false,
+    font:{size:10, color:'#00d4ff'}, xanchor:'right', yanchor:'bottom',
+  }],
+};
+
+Plotly.newPlot('heroChart', traces, layout, {responsive:true, displayModeBar:false});
+</script>
+{% endblock %}

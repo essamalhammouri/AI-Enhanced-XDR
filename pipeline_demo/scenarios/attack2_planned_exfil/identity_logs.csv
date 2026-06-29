@@ -1,0 +1,14 @@
+﻿timestamp,user,src_ip,location,event,status
+2024-03-13 09:14:08,alice,10.0.4.21,HQ_Office,login_attempt,success
+2024-03-13 09:14:11,alice,10.0.4.21,HQ_Office,session_start,success
+2024-03-13 09:42:33,alice,10.0.4.21,HQ_Office,login_attempt,failed
+2024-03-13 09:43:11,alice,10.0.4.21,HQ_Office,login_attempt,failed
+2024-03-13 11:14:22,alice,10.0.4.21,HQ_Office,privilege_escalation,success
+2024-03-13 14:48:33,alice,10.0.4.21,HQ_Office,privilege_escalation,success
+2024-03-13 17:18:42,alice,10.0.4.21,HQ_Office,session_end,success
+2024-03-13 08:18:22,bob,10.0.4.55,HQ_Office,login_attempt,success
+2024-03-13 08:18:25,bob,10.0.4.55,HQ_Office,session_start,success
+2024-03-13 09:42:08,bob,10.0.4.55,HQ_Office,login_attempt,failed
+2024-03-13 09:42:51,bob,10.0.4.55,HQ_Office,login_attempt,failed
+2024-03-13 11:14:42,bob,10.0.4.55,HQ_Office,privilege_escalation,success
+2024-03-13 17:42:11,bob,10.0.4.55,HQ_Office,session_end,success
